@@ -237,7 +237,7 @@ class AbstractTopology(OrgMixin, TimeStampedEditableModel):
 
     def _update_node_properties(self, node, node_dict, section):
         changed = False
-        if node.label != node_dict.get('label'):
+        if not node.label and node.label != node_dict.get('label'):
             changed = True
             node.label = node_dict.get('label')
         local_addresses = node_dict.get('local_addresses')
