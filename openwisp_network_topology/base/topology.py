@@ -1,4 +1,6 @@
 import json
+import socket
+import logging
 from collections import OrderedDict
 from datetime import datetime, timedelta
 
@@ -18,6 +20,8 @@ from openwisp_utils.base import KeyField, TimeStampedEditableModel
 from ..contextmanagers import log_failure
 from ..settings import PARSERS, TIMEOUT
 from ..utils import print_info
+
+logger = logging.getLogger(__name__)
 
 STRATEGIES = (('fetch', _('FETCH')), ('receive', _('RECEIVE')))
 
@@ -307,6 +311,20 @@ class AbstractTopology(OrgMixin, TimeStampedEditableModel):
                 if link:
                     self._update_link_properties(link, link_dict, section='removed')
 
+    def update_node_labels(self):
+        """
+        Updates all node labels with RDNS values for address
+        """
+        empty_label_nodes = self.node_set.filter(label__exact='')
+        for empty_label_node in empty_label_nodes:
+            try:
+                host_name, _ = socket.getnameinfo((empty_label_node.netjson_id, 0), 0)
+                empty_label_node.label = host_name
+                empty_label_node.save()
+            except Exception:
+                logger.exception("Failed to update {}".format(empty_label_node.netjson_id))
+
+
     def save_snapshot(self, **kwargs):
         """
         Saves the snapshot of topology
@@ -379,6 +397,22 @@ class AbstractTopology(OrgMixin, TimeStampedEditableModel):
                 topology.update()
         cls().link_model.delete_expired_links()
         cls().node_model.delete_expired_nodes()
+
+
+    @classmethod
+    def update_all_node_labels(cls, label=None):
+        """
+        - updates labels on all nodes on all topologies using DNS
+        - logs failures
+        """
+        queryset = cls.objects.filter(published=True, strategy='fetch')
+        if label:
+            queryset = queryset.filter(label__icontains=label)
+        for topology in queryset:
+            print_info('Updating topology {0}'.format(topology))
+            with log_failure('update', topology):
+                topology.update_node_labels()
+
 
     @classmethod
     def save_snapshot_all(cls, label=None):
