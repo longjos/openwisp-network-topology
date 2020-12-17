@@ -315,14 +315,17 @@ class AbstractTopology(OrgMixin, TimeStampedEditableModel):
         """
         Updates all node labels with RDNS values for address
         """
-        empty_label_nodes = self.node_set.filter(label__exact='')
-        for empty_label_node in empty_label_nodes:
+        nodes_to_update = [
+            empty_label_node for empty_label_node in self.node_set.all()
+            if empty_label_node.name == '' or empty_label_node.name == empty_label_node.netjson_id
+        ]
+        for node_to_update in nodes_to_update:
             try:
-                host_name, _ = socket.getnameinfo((empty_label_node.netjson_id, 0), 0)
-                empty_label_node.label = host_name
-                empty_label_node.save()
+                host_name, _ = socket.getnameinfo((node_to_update.netjson_id, 0), 0)
+                node_to_update.label = host_name
+                node_to_update.save()
             except Exception:
-                logger.exception("Failed to update {}".format(empty_label_node.netjson_id))
+                logger.exception("Failed to update {}".format(node_to_update.netjson_id))
 
 
     def save_snapshot(self, **kwargs):
