@@ -310,6 +310,7 @@ class AbstractTopology(OrgMixin, TimeStampedEditableModel):
                 )
                 if link:
                     self._update_link_properties(link, link_dict, section='removed')
+        self.update_node_labels()
 
     def update_node_labels(self):
         """
@@ -326,7 +327,6 @@ class AbstractTopology(OrgMixin, TimeStampedEditableModel):
                 node_to_update.save()
             except Exception:
                 logger.exception("Failed to update {}".format(node_to_update.netjson_id))
-
 
     def save_snapshot(self, **kwargs):
         """
